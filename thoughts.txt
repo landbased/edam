@@ -1,0 +1,61 @@
+Core concepts:
+
+ARRAYS OF FUNDAMENTAL OBJECT TYPES, GENERATIONALLY INDEXED
+
+types:
+
+ENTITIES
+
+RENDERERS [
+  LAYER0,
+  LAYER1,
+  ...
+]
+Renderers are rendered back to front (painters algorithm)
+
+COLLIDERS [
+  LAYER0,
+  LAYER1,
+  ..
+]
+Colliders belong to a layer, and have a list of layers they can collide with.
+Each layer also has a flag for whether it is a true collision layer, or a layer for trigger zones.
+When an object is moved, check through all of the colliders in the relevant layers.
+If there is a collision with a trigger, schedule an event.
+If there is a collision with a collider, handle that movement based on collider flags (bounce etc.)
+
+Each of these groups is generationally indexed:
+
+- When adding an object, first check the list of freed slots.
+If there is a slot available, put the object reference in and remove that slot from the list of free slots.
+If there is no slot available, push onto the array and set generation to 0.
+Return an ID which is a combination of the index and the generation.
+
+- When deleting an object, clear the reference, increment the generation and add the slot to the list of free slots.
+
+Whenever an object needs a reference to another object, it must retrieve it via the generational index.
+Storing direct references to objects outside of the current stack frame is not allowed.
+The generational index list 'owns' each object, so destroying them must be done through it.
+
+
+
+INTERACTIONS IN EVENT QUEUES
+
+When an entity e.g. wants to move, it schedules an event.
+This means adding it into a queue for this frame, with an associated event object.
+Event objects are game-defined, with perhaps some defaults for e.g. movement, playing a sound, spawning an entity
+
+Once all entities are processed for a frame, the events are gone through in order.
+When an event completes, it writes the new game state.
+Each event is responsible for checkings its prerequisite against the current game state.
+For example, for an object to move, it must check it was not already deleted this frame.
+Events have the ability to
+  a) schedule a new event this frame. it is added to the end of the queue
+  b) schedule a new event next frame. it is added to the end of NEXT frames queue (which means is happens before any event triggered next frame)
+In this way coroutine-ish events are supported by repeatedly scheduling events for the next frame.
+
+Each event type an also be subscribed to, optionally with an event object to match against.
+Every event publishes its execution (once invariants are checked), potentially scheduling more events.
+
+
+
